@@ -1,0 +1,167 @@
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  PYTHON_VERSION: "3.11"
+  DOCKER_DRIVER: overlay2
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip_cache"
+
+# Cache pip dependencies across jobs
+cache:
+  paths:
+    - .pip_cache/
+
+# ─────────────────────────────────────────────
+# LINT STAGE
+# ─────────────────────────────────────────────
+lint:ruff:
+  stage: lint
+  image: python:3.11-slim
+  script:
+    - pip install ruff --quiet
+    - ruff check backend/ --ignore E501,E402
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+lint:format-check:
+  stage: lint
+  image: python:3.11-slim
+  script:
+    - pip install black --quiet
+    - black backend/ --check --diff
+  allow_failure: true  # Non-blocking for now
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ─────────────────────────────────────────────
+# TEST STAGE
+# ─────────────────────────────────────────────
+test:unit:
+  stage: test
+  image: python:3.11-slim
+  services:
+    - name: mongo:7.0
+      alias: mongodb
+    - name: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+      alias: elasticsearch
+      variables:
+        discovery.type: single-node
+        xpack.security.enabled: "false"
+        ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+  variables:
+    MONGO_URI: "mongodb://mongodb:27017"
+    ELASTICSEARCH_URL: "http://elasticsearch:9200"
+    ARIZE_LOG_FILE: "/tmp/arize_test.jsonl"
+  before_script:
+    - pip install -r backend/requirements.txt --quiet
+    # Wait for services to be ready
+    - |
+      echo "Waiting for MongoDB..."
+      for i in $(seq 1 20); do
+        python -c "import pymongo; pymongo.MongoClient('$MONGO_URI', serverSelectionTimeoutMS=2000).server_info()" 2>/dev/null && break
+        echo "  Attempt $i/20..."
+        sleep 3
+      done
+    - |
+      echo "Waiting for Elasticsearch..."
+      for i in $(seq 1 30); do
+        curl -sf http://elasticsearch:9200/_cluster/health?wait_for_status=yellow && break
+        echo "  Attempt $i/30..."
+        sleep 5
+      done
+  script:
+    - cd backend
+    - python -m pytest tests/ -v --tb=short --color=yes
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      junit: backend/test-results.xml
+    when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+test:pipeline-smoke:
+  stage: test
+  image: python:3.11-slim
+  variables:
+    ARIZE_LOG_FILE: "/tmp/arize_smoke.jsonl"
+  before_script:
+    - pip install -r backend/requirements.txt --quiet
+  script:
+    - cd backend
+    # Quick smoke test — no DB needed
+    - python -c "
+from pipeline.drone_simulator import DroneSimulator
+from pipeline.psych_model import PsychModel
+from pipeline.route_generator import generate_grid, generate_rescue_route
+import asyncio, sys
+
+sim = DroneSimulator('smoke-test', 'hiker')
+frames = sim.generate_flight_path(3)
+assert len(frames) == 3, 'Frame count mismatch'
+
+psych = PsychModel('hiker')
+grid = generate_grid(47.5, -121.8)
+assert len(grid) == 100, f'Grid size wrong: {len(grid)}'
+scored = psych.score_grid(grid, {'lat': 47.5, 'lng': -121.8}, [])
+assert all('probability' in c for c in scored), 'Missing probability'
+
+waypoints = generate_rescue_route(scored, 5)
+assert len(waypoints) == 5, 'Waypoint count mismatch'
+print('All smoke tests passed!')
+sys.exit(0)
+"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ─────────────────────────────────────────────
+# BUILD STAGE
+# ─────────────────────────────────────────────
+build:docker:
+  stage: build
+  image: docker:24-cli
+  services:
+    - docker:24-dind
+  before_script:
+    - docker info
+  script:
+    - |
+      docker build \
+        --tag "sar-ai-agent:${CI_COMMIT_SHORT_SHA}" \
+        --tag "sar-ai-agent:latest" \
+        --label "git-commit=${CI_COMMIT_SHA}" \
+        --label "built-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        -f Dockerfile .
+    - echo "Image built successfully: sar-ai-agent:${CI_COMMIT_SHORT_SHA}"
+    - docker image ls sar-ai-agent
+  artifacts:
+    reports: {}
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ─────────────────────────────────────────────
+# DEPLOY STAGE
+# ─────────────────────────────────────────────
+deploy:staging:
+  stage: deploy
+  image: alpine:latest
+  environment:
+    name: staging
+    url: https://sar-agent-staging.example.com
+  script:
+    - echo "=== SAR AI Agent Deployment ==="
+    - echo "Commit: ${CI_COMMIT_SHA}"
+    - echo "Image: sar-ai-agent:${CI_COMMIT_SHORT_SHA}"
+    - echo "Target: staging"
+    - echo "Configure your deployment steps here:"
+    - echo "  - kubectl set image deployment/sar-agent sar-agent=sar-ai-agent:${CI_COMMIT_SHORT_SHA}"
+    - echo "  - OR: docker compose -f docker-compose.prod.yml up -d"
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"

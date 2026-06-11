@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAR AI Agent — Drone-Powered Search &amp; Rescue Intelligence</title>
+  <meta name="description" content="AI-powered Search and Rescue drone tracking system using computer vision, psychological behavior modeling, and real-time route generation.">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="app-header" id="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">🚁</div>
+      <div class="brand-text">
+        <span class="brand-title">SAR AI AGENT</span>
+        <span class="brand-sub">Drone Intelligence Platform</span>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="mission-status-bar" id="mission-status-bar">
+        <span class="status-label">STATUS</span>
+        <div class="status-pill idle" id="status-pill">IDLE</div>
+      </div>
+      <div class="progress-container" id="progress-container" style="display:none">
+        <div class="progress-bar" id="progress-bar"></div>
+        <span class="progress-text" id="progress-text">0%</span>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-chip" id="chip-frames">
+        <span class="chip-val" id="stat-frames">0</span>
+        <span class="chip-label">Frames</span>
+      </div>
+      <div class="stat-chip" id="chip-detections">
+        <span class="chip-val" id="stat-detections">0</span>
+        <span class="chip-label">Detections</span>
+      </div>
+      <div class="stat-chip" id="chip-waypoints">
+        <span class="chip-val" id="stat-waypoints">0</span>
+        <span class="chip-label">Waypoints</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN GRID -->
+  <main class="app-grid" id="app-grid">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+
+      <!-- New Mission Panel -->
+      <section class="card mission-form-card" id="mission-form-card">
+        <div class="card-header">
+          <span class="card-icon">🎯</span>
+          <h2 class="card-title">New Mission</h2>
+        </div>
+        <form id="mission-form" class="mission-form">
+          <div class="form-group">
+            <label for="subject-name">Subject Name</label>
+            <input type="text" id="subject-name" placeholder="Unknown" value="John Doe">
+          </div>
+          <div class="form-group">
+            <label for="subject-type">Subject Category</label>
+            <select id="subject-type">
+              <option value="hiker">🥾 Hiker</option>
+              <option value="child">👦 Child</option>
+              <option value="dementia">🧠 Dementia Patient</option>
+              <option value="hunter">🎯 Hunter</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="subject-age">Age (years)</label>
+              <input type="number" id="subject-age" placeholder="Unknown" min="1" max="110">
+            </div>
+            <div class="form-group">
+              <label for="subject-gender">Gender</label>
+              <select id="subject-gender">
+                <option value="">Unknown</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="circumstance">Circumstances</label>
+            <select id="circumstance">
+              <option value="normal">🟢 Normal — No special conditions</option>
+              <option value="experienced">🧭 Experienced Outdoorsperson</option>
+              <option value="injured">🩹 Injured / Mobility Limited</option>
+              <option value="intoxicated">⚠️ Possibly Intoxicated</option>
+              <option value="medical_emergency">🚨 Medical Emergency (cardiac/diabetic/seizure)</option>
+              <option value="suicidal">🔴 Possible Suicidal Ideation</option>
+              <option value="night_lost">🌙 Realized Lost at Night</option>
+              <option value="group_separated">👥 Separated from Group</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="subject-nationality">Nationality / Country</label>
+              <input type="text" id="subject-nationality" placeholder="e.g. India, USA, Japan">
+            </div>
+            <div class="form-group">
+              <label for="edu-level">Education Level</label>
+              <select id="edu-level">
+                <option value="">Unknown</option>
+                <option value="none">No formal education</option>
+                <option value="primary">Primary school</option>
+                <option value="secondary">Secondary / High School</option>
+                <option value="vocational">Vocational / ITI</option>
+                <option value="diploma">Diploma / Polytechnic</option>
+                <option value="bachelor">Bachelor's Degree</option>
+                <option value="master">Master's Degree</option>
+                <option value="phd">PhD / Doctorate</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edu-field">Education Field / Degree</label>
+              <select id="edu-field">
+                <option value="">Unknown / Not listed</option>
+                <optgroup label="Engineering & Tech">
+                  <option value="btech">B.Tech / B.E.</option>
+                  <option value="mtech">M.Tech / M.E.</option>
+                  <option value="bca">BCA</option>
+                  <option value="mca">MCA</option>
+                </optgroup>
+                <optgroup label="Science">
+                  <option value="bsc">B.Sc</option>
+                  <option value="msc">M.Sc</option>
+                  <option value="phd">PhD</option>
+                </optgroup>
+                <optgroup label="Medical">
+                  <option value="mbbs">MBBS / MD</option>
+                  <option value="nursing">Nursing / BNSc</option>
+                  <option value="pharmacy">B.Pharm / M.Pharm</option>
+                </optgroup>
+                <optgroup label="Business">
+                  <option value="bba">BBA / BBM</option>
+                  <option value="mba">MBA</option>
+                  <option value="bcom">B.Com / M.Com</option>
+                </optgroup>
+                <optgroup label="Arts & Humanities">
+                  <option value="ba">BA</option>
+                  <option value="ma">MA</option>
+                  <option value="bfa">BFA / Fine Arts</option>
+                </optgroup>
+                <optgroup label="Law">
+                  <option value="llb">LLB</option>
+                  <option value="llm">LLM</option>
+                </optgroup>
+                <optgroup label="Outdoors / Natural Science">
+                  <option value="geography">Geography / Earth Science</option>
+                  <option value="forestry">Forestry / Wildlife</option>
+                  <option value="environmental">Environmental Science</option>
+                </optgroup>
+                <optgroup label="Military / Defence">
+                  <option value="military">Military / Defence</option>
+                  <option value="ncc">NCC / Cadet</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="subject-job">Occupation / Job</label>
+              <select id="subject-job">
+                <option value="">Unknown</option>
+                <optgroup label="Emergency & Security">
+                  <option value="soldier">Military / Soldier</option>
+                  <option value="police">Police / Law Enforcement</option>
+                  <option value="firefighter">Firefighter / Paramedic</option>
+                </optgroup>
+                <optgroup label="Medical">
+                  <option value="doctor">Doctor / Physician</option>
+                  <option value="nurse">Nurse / Healthcare</option>
+                </optgroup>
+                <optgroup label="Outdoors & Field">
+                  <option value="forester">Forester / Park Ranger</option>
+                  <option value="farmer">Farmer / Agricultural</option>
+                  <option value="geologist">Geologist / Surveyor</option>
+                  <option value="construction">Construction / Tradesperson</option>
+                  <option value="pilot">Pilot / Navigator</option>
+                </optgroup>
+                <optgroup label="Sports & Physical">
+                  <option value="athlete">Athlete / Fitness Trainer</option>
+                </optgroup>
+                <optgroup label="Technical & Office">
+                  <option value="engineer">Software / IT Engineer</option>
+                  <option value="office">Office Worker / Admin</option>
+                  <option value="teacher">Teacher / Academic</option>
+                  <option value="journalist">Journalist / Media</option>
+                </optgroup>
+                <optgroup label="Transport">
+                  <option value="driver">Driver / Transport</option>
+                </optgroup>
+                <optgroup label="Creative">
+                  <option value="artist">Artist / Creative</option>
+                </optgroup>
+                <optgroup label="Other">
+                  <option value="student">Student</option>
+                  <option value="retired">Retired / Pensioner</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="lkp-lat">LKP Latitude</label>
+              <input type="number" id="lkp-lat" value="47.5000" step="0.0001">
+            </div>
+            <div class="form-group">
+              <label for="lkp-lng">LKP Longitude</label>
+              <input type="number" id="lkp-lng" value="-121.8000" step="0.0001">
+            </div>
+          </div>
+          <!-- ── TIME SECTION ── -->
+          <div class="form-group time-section">
+            <label class="time-section-label">🕒 Temporal Information</label>
+            <div class="time-fields">
+              <div class="form-group">
+                <label for="entry-time">Last Seen / Entered Area</label>
+                <input type="datetime-local" id="entry-time">
+              </div>
+              <div class="form-group">
+                <label for="search-start-time">Search Launch Time</label>
+                <input type="datetime-local" id="search-start-time">
+              </div>
+            </div>
+            <div class="elapsed-display" id="elapsed-display">
+              <span class="elapsed-icon">⏱</span>
+              <span class="elapsed-label">Time Missing</span>
+              <span class="elapsed-value" id="elapsed-value">—</span>
+              <span class="elapsed-window" id="elapsed-window"></span>
+            </div>
+            <div class="form-group" style="margin-top:6px">
+              <label for="missing-hours">Fallback: Hours Missing (if no datetimes above)</label>
+              <input type="number" id="missing-hours" value="4" min="0.5" step="0.5">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="terrain-type">Terrain</label>
+            <select id="terrain-type">
+              <option value="mixed_forest">Mixed Forest</option>
+              <option value="dense_forest">Dense Forest</option>
+              <option value="open_field">Open Field</option>
+              <option value="steep_slope">Steep Slope</option>
+              <option value="creek_side">Creek Side</option>
+              <option value="trail">Trail</option>
+              <option value="rocky_outcrop">Rocky Outcrop</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="notes">Field Notes</label>
+            <textarea id="notes" placeholder="Last seen wearing orange jacket..." rows="2"></textarea>
+          </div>
+
+          <button type="submit" class="btn-launch" id="btn-launch">
+            <span class="btn-icon">🚁</span>
+            Launch Drone Mission
+          </button>
+        </form>
+      </section>
+
+      <!-- Behavioral Profile Card -->
+      <section class="card psych-card" id="psych-card" style="display:none">
+        <div class="card-header">
+          <span class="card-icon">🧠</span>
+          <h2 class="card-title">Behavioral Profile</h2>
+          <div class="urgency-badge MODERATE" id="urgency-badge">MODERATE</div>
+        </div>
+        <div class="psych-stats" id="psych-stats">
+          <div class="psych-stat">
+            <span class="ps-label">Found Alive Rate</span>
+            <span class="ps-val" id="ps-alive-rate">96%</span>
+          </div>
+          <div class="psych-stat">
+            <span class="ps-label">Eff. Distance</span>
+            <span class="ps-val" id="ps-distance">3.1 km</span>
+          </div>
+          <div class="psych-stat">
+            <span class="ps-label">Spiral Prob.</span>
+            <span class="ps-val" id="ps-spiral">23%</span>
+          </div>
+        </div>
+        <p class="psych-behavior" id="psych-behavior"></p>
+        <div class="advice-list" id="advice-list"></div>
+        <!-- Historical insights panel -->
+        <div class="path-prediction" id="historical-prediction" style="display:none; background: rgba(0, 212, 170, 0.08); border-color: rgba(0, 212, 170, 0.25);">
+          <div class="pp-header" style="background: rgba(0, 212, 170, 0.12); color: var(--teal);">
+            <span>📚 Historical DB Match</span>
+            <span class="pp-conf" id="hist-count">—</span>
+          </div>
+          <div class="pp-body">
+            <div class="pp-row"><span class="pp-label">Found Alive</span><span class="pp-val" id="hist-alive">—</span></div>
+            <div class="pp-row"><span class="pp-label">Avg Distance</span><span class="pp-val" id="hist-dist">—</span></div>
+            <div class="pp-row"><span class="pp-label">Avg Time</span><span class="pp-val" id="hist-time">—</span></div>
+            <div class="pp-alert" id="hist-note" style="display:none; color: var(--teal); border-left-color: var(--teal); background: rgba(0, 212, 170, 0.1);"></div>
+          </div>
+        </div>
+        
+        <!-- Path prediction panel -->
+        <div class="path-prediction" id="path-prediction" style="display:none">
+          <div class="pp-header">
+            <span>📡 Trace-Based Path Prediction</span>
+            <span class="pp-conf" id="pp-conf">—</span>
+          </div>
+          <div class="pp-body">
+            <div class="pp-row"><span class="pp-label">Bearing</span><span class="pp-val" id="pp-bearing">—</span></div>
+            <div class="pp-row"><span class="pp-label">Direction</span><span class="pp-val" id="pp-direction">—</span></div>
+            <div class="pp-row"><span class="pp-label">Tracks Used</span><span class="pp-val" id="pp-tracks">—</span></div>
+            <div class="pp-alert" id="pp-alert" style="display:none">⚠️ Direction change detected — possible panic or looping</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Past Missions -->
+      <section class="card missions-card" id="missions-card">
+        <div class="card-header">
+          <span class="card-icon">📋</span>
+          <h2 class="card-title">Past Missions</h2>
+          <button class="btn-refresh" id="btn-refresh-missions" title="Refresh">↻</button>
+        </div>
+        <div class="missions-list" id="missions-list">
+          <p class="empty-msg">No missions yet.</p>
+        </div>
+      </section>
+
+      <!-- Partner Badges -->
+      <section class="card partners-card">
+        <div class="card-header">
+          <span class="card-icon">🔗</span>
+          <h2 class="card-title">Partner Stack</h2>
+        </div>
+        <div class="partners-grid">
+          <div class="partner-badge mongodb"><span class="pb-dot"></span>MongoDB</div>
+          <div class="partner-badge elastic"><span class="pb-dot"></span>Elastic</div>
+          <div class="partner-badge arize"><span class="pb-dot"></span>Arize</div>
+          <div class="partner-badge gitlab"><span class="pb-dot"></span>GitLab</div>
+          <div class="partner-badge fivetran"><span class="pb-dot"></span>Fivetran</div>
+          <div class="partner-badge dynatrace"><span class="pb-dot"></span>Dynatrace</div>
+        </div>
+        <div class="arize-stats" id="arize-stats-panel">
+          <span class="as-label">Arize Predictions Logged:</span>
+          <span class="as-val" id="arize-pred-count">—</span>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- CENTER: MAP + LOG -->
+    <div class="center-panel" id="center-panel">
+
+      <!-- Map Panel -->
+      <section class="card map-card" id="map-card">
+        <div class="map-header">
+          <div class="map-title-group">
+            <span class="card-icon">🗺️</span>
+            <h2 class="card-title">Live Search Area — North Bend, WA</h2>
+          </div>
+          <div class="map-controls">
+            <button class="map-btn active" id="btn-show-heatmap" title="Toggle Heatmap">🔥 Heatmap</button>
+            <button class="map-btn active" id="btn-show-route" title="Toggle Route">📍 Route</button>
+            <button class="map-btn active" id="btn-show-detections" title="Toggle Detections">👣 Tracks</button>
+          </div>
+        </div>
+        <div id="map" class="leaflet-map"></div>
+        <div class="map-legend">
+          <div class="legend-item"><div class="legend-color" style="background:#ef4444"></div>Very High Prob.</div>
+          <div class="legend-item"><div class="legend-color" style="background:#ff6b35"></div>High Prob.</div>
+          <div class="legend-item"><div class="legend-color" style="background:#ffd166"></div>Medium Prob.</div>
+          <div class="legend-item"><div class="legend-color" style="background:#00d4aa"></div>Low Prob.</div>
+          <div class="legend-item"><div class="legend-color" style="background:#4a90d9;border-radius:50%"></div>Waypoint</div>
+          <div class="legend-item"><div class="legend-color" style="background:#ff6b35;border-radius:50%"></div>Detection</div>
+        </div>
+      </section>
+
+      <!-- Detection Log -->
+      <section class="card log-card" id="log-card">
+        <div class="card-header">
+          <span class="card-icon">📡</span>
+          <h2 class="card-title">Live Detection Feed</h2>
+          <div class="log-controls">
+            <button class="btn-clear-log" id="btn-clear-log">Clear</button>
+          </div>
+        </div>
+        <div class="log-feed" id="log-feed">
+          <div class="log-empty">Awaiting drone data...</div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <aside class="right-panel" id="right-panel">
+      <section class="card cases-card">
+        <div class="card-header">
+          <span class="card-icon">🔍</span>
+          <h2 class="card-title">Similar Cases</h2>
+          <span class="elastic-badge">via Elastic</span>
+        </div>
+        <div class="cases-list" id="cases-list">
+          <p class="empty-msg">Start a mission to match historical cases.</p>
+        </div>
+      </section>
+
+      <!-- Mission Summary -->
+      <section class="card summary-card" id="summary-card" style="display:none">
+        <div class="card-header">
+          <span class="card-icon">✅</span>
+          <h2 class="card-title">Mission Summary</h2>
+        </div>
+        <div class="summary-body" id="summary-body"></div>
+      </section>
+
+      <!-- Waypoint List -->
+      <section class="card waypoints-card" id="waypoints-card">
+        <div class="card-header">
+          <span class="card-icon">📍</span>
+          <h2 class="card-title">Rescue Route</h2>
+        </div>
+        <div class="waypoints-list" id="waypoints-list">
+          <p class="empty-msg">Route not yet generated.</p>
+        </div>
+      </section>
+    </aside>
+
+  </main>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App JS -->
+  <script src="app.js"></script>
+</body>
+</html>

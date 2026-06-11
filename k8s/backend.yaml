@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: sar-agent-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MONGO_URI
+          value: "mongodb://mongodb:27017"
+        - name: ELASTICSEARCH_URL
+          value: "http://elasticsearch:9200"
+        - name: PHOENIX_COLLECTOR_ENDPOINT
+          value: "http://phoenix:4318"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sar-secrets
+              key: gemini-api-key
+              optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
