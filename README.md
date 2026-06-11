@@ -173,16 +173,6 @@ python -m pytest tests/ -v
 
 ---
 
-## 📊 Why This Could Win
-
-- **Real-world life-saving impact** — not a chatbot or task manager
-- **Multi-partner integration** — all 6 hackathon partners serve distinct roles
-- **Non-trivial multimodal AI** — vision + reasoning + psychological modeling
-- **Grounded in real SAR science** — Mattson's Lost Person Behavior data
-- **Emotionally resonant for judges** — people found alive
-- **Technically impressive demo** — drone + AI + real-time map
-
----
 
 ## 📝 License
 
